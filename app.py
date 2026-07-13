@@ -1,6 +1,7 @@
 """
 Główny kontroler aplikacji LottoHistoryAI.
 Zarządza stanem, interfejsem użytkownika i dystrybucją potoków danych.
+Poprawiono parametry renderowania wykresów Plotly dla pełnej kompatybilności z serwerem.
 """
 
 from __future__ import annotations
@@ -88,14 +89,18 @@ def main():
         st.subheader("Parametry statystyczne i rozkłady empiryczne")
         st.table(AnalizatorStatystyczny.generuj_podstawowe(df_analiza))
         col_s = st.selectbox("Wybierz kolumnę przesunięcia do analizy gęstości:", [f"Skok_P{i}" for i in range(1, 7)])
-        st.plotly_chart(KreatorWykresow.histogram_skoku(df_skoki, col_s), width="stretch")
+        
+        # POPRAWIONE: Zmiana width="stretch" na use_container_width=True dla wykresów Plotly
+        st.plotly_chart(KreatorWykresow.histogram_skoku(df_skoki, col_s), use_container_width=True)
 
     # Karta 4: Gorące i Zimne Liczby
     with tabs[3]:
         st.subheader("Częstotliwość występowania poszczególnych liczb")
         horyzont = st.selectbox("Okno obserwacji:", [20, 50, 100, len(df_baza)], format_func=lambda x: f"Ostatnie {x} losowań" if x != len(df_baza) else "Pełny zbiór")
         czestosc = AnalizatorStatystyczny.oblicz_czestosc_liczb(df_baza, horyzont)
-        st.plotly_chart(KreatorWykresow.wykres_czestosci(czestosc, f"Rozkład trafień (Horyzont: {horyzont})"), width="stretch")
+        
+        # POPRAWIONE: Zmiana width="stretch" na use_container_width=True dla wykresów Plotly
+        st.plotly_chart(KreatorWykresow.wykres_czestosci(czestosc, f"Rozkład trafień (Horyzont: {horyzont})"), use_container_width=True)
 
     # Karta 5: Pary i Trójki
     with tabs[4]:
