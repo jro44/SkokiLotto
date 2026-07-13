@@ -12,28 +12,24 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-
 # =============================================================================
 # KONFIGURACJA
 # =============================================================================
 
-NAZWA_PLIKU = (
-    "Wyniki.mht"
-)
+NAZWA_PLIKU = "Wyniki.mht"
 LICZBA_POZYCJI = 6
 MIN_LICZBA = 1
 MAX_LICZBA = 49
 PROG_DUZEGO_SKOKU_WAHADLA = 10
 
-KOLUMNY_LICZB = [f"P{i}" for i in range(1, LICZBA_POZYCJI + 1)]
-KOLUMNY_SKOKOW = [f"Skok_P{i}" for i in range(1, LICZBA_POZYCJI + 1)]
+KOLUMNY_LICZB = [f"P{i}" for i in range(1, LICZNA_POZYCJI + 1)]
+KOLUMNY_SKOKOW = [f"Skok_P{i}" for i in range(1, LICZNA_POZYCJI + 1)]
 
 st.set_page_config(
     page_title="Analizator gradientów Lotto 6/49",
     page_icon="📈",
     layout="wide",
 )
-
 
 # =============================================================================
 # WCZYTYWANIE I PARSOWANIE MHT/HTML
@@ -48,11 +44,7 @@ def znajdz_sciezke_pliku() -> Path:
 def wczytaj_zawartosc_mht(sciezka_tekstowa: str) -> str:
     """
     Wczytuje dokument MHT.
-
-    Najpierw próbuje poprawnie wydobyć część text/html z kontenera MIME.
-    Jeżeli plik nie jest standardowym MHT, stosuje bezpieczny odczyt awaryjny.
-    Właściwa analiza tabeli odbywa się później wyłącznie przez wyrażenia
-    regularne z biblioteki re.
+    Ekstrahuje text/html z kontenera MIME lub stosuje bezpieczny odczyt awaryjny.
     """
     sciezka = Path(sciezka_tekstowa)
     dane = sciezka.read_bytes()
@@ -94,13 +86,6 @@ def wczytaj_zawartosc_mht(sciezka_tekstowa: str) -> str:
     return dane.decode("utf-8", errors="replace")
 
 
-def wyczysc_tekst_html(tekst: str) -> str:
-    """Usuwa znaczniki HTML i zamienia encje na zwykły tekst."""
-    bez_znacznikow = re.sub(r"<[^>]+>", " ", tekst, flags=re.IGNORECASE)
-    bez_znacznikow = html.unescape(bez_znacznikow)
-    return re.sub(r"\s+", " ", bez_znacznikow).strip()
-
-
 def pobierz_klasy_znacznika(td_otwierajacy: str) -> set[str]:
     """Zwraca zestaw klas CSS z otwierającego znacznika td."""
     dopasowanie = re.search(
@@ -120,16 +105,7 @@ def pobierz_klasy_znacznika(td_otwierajacy: str) -> set[str]:
 
 @st.cache_data(show_spinner=False)
 def parsuj_wyniki_lotto(zawartosc: str) -> pd.DataFrame:
-    """
-    Parsuje wiersze tabeli zgodnie z układem map liczbowych.
-
-    Reguły:
-    1. Wydobywa wszystkie <tr>...</tr>.
-    2. Znajduje komórkę klasy mapyNumer oraz numer w <strong>.
-    3. Analizuje kolejne komórki td jako pozycje liczb 1-49.
-    4. Za wylosowane uznaje pozycje z klasą mapWylosowano.
-    5. Zachowuje tylko rekordy zawierające dokładnie 6 liczb.
-    """
+    """Parsuje wiersze tabeli HTML przy użyciu biblioteki re."""
     wzorzec_tr = re.compile(
         r"<tr\b[^>]*>(.*?)</tr\s*>",
         flags=re.IGNORECASE | re.DOTALL,
@@ -189,7 +165,7 @@ def parsuj_wyniki_lotto(zawartosc: str) -> pd.DataFrame:
         rekord.update(
             {
                 f"P{i + 1}": liczba
-                for i, liczba in enumerate(sorted(wylosowane))
+                for i, slice_l in enumerate(sorted(wylosowane))
             }
         )
         rekordy.append(rekord)
@@ -218,7 +194,7 @@ def przygotuj_dane_chronologiczne(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def oblicz_mape_skokow(df: pd.DataFrame) -> pd.DataFrame:
-    """Wylicza gradient osobno dla każdej z sześciu pozycji."""
+    """Wylicza gradient (różnicę) osobno dla każdej z sześciu pozycji."""
     chronologiczny = przygotuj_dane_chronologiczne(df)
 
     skoki = chronologiczny[KOLUMNY_LICZB].diff()
@@ -234,10 +210,7 @@ def oblicz_mape_skokow(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def przygotuj_przejscia(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Tworzy tabelę przejść: stan poprzedniego losowania oraz skok prowadzący
-    do bieżącego losowania.
-    """
+    """Buduje tabelę przejść stanów dla analizy warunkowej."""
     chronologiczny = przygotuj_dane_chronologiczne(df)
     przejscia = chronologiczny.copy()
 
@@ -273,7 +246,7 @@ def przygotuj_przejscia(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def ogranicz_historie(df: pd.DataFrame, wybor: str) -> pd.DataFrame:
-    """Ogranicza bazę do ostatnich N losowań, zachowując chronologię."""
+    """Ogranicza bazę danych do wybranych N ostatnich losowań."""
     if wybor == "Wszystkie":
         return df.copy()
 
@@ -291,7 +264,6 @@ def ogranicz_historie(df: pd.DataFrame, wybor: str) -> pd.DataFrame:
 # =============================================================================
 
 def top_3_wartosci(seria: pd.Series) -> list[tuple[int, int, float]]:
-    """Zwraca trzy najczęstsze skoki: wartość, liczność i udział procentowy."""
     licznik = Counter(int(x) for x in seria.dropna().tolist())
     razem = sum(licznik.values())
 
@@ -302,7 +274,6 @@ def top_3_wartosci(seria: pd.Series) -> list[tuple[int, int, float]]:
 
 
 def tabela_statystyk(skoki: pd.DataFrame) -> pd.DataFrame:
-    """Buduje tabelę średnich i najczęstszych gradientów."""
     rekordy: list[dict[str, object]] = []
 
     for i, kolumna in enumerate(KOLUMNY_SKOKOW, start=1):
@@ -330,7 +301,6 @@ def tabela_statystyk(skoki: pd.DataFrame) -> pd.DataFrame:
 
 
 def rozklad_skokow(seria: pd.Series) -> pd.DataFrame:
-    """Przygotowuje rozkład procentowy do st.bar_chart."""
     rozklad = (
         seria.value_counts(normalize=True)
         .sort_index()
@@ -351,15 +321,7 @@ def bezpieczny_procent(licznik: int, mianownik: int) -> float:
 
 
 def wyznacz_progi_stanow(przejscia: pd.DataFrame) -> tuple[float, float, int]:
-    """
-    Progi są adaptacyjne:
-    - mały rozstęp: kwartyl 25%,
-    - duży rozstęp: kwartyl 75%,
-    - duży skok ekspansyjny: kwartyl 75% bezwzględnych skoków skrajnych,
-      lecz nie mniej niż 5.
-    """
     rozstepy = przejscia["Poprzedni rozstęp"]
-
     prog_malego = float(rozstepy.quantile(0.25))
     prog_duzego = float(rozstepy.quantile(0.75))
 
@@ -376,7 +338,6 @@ def wyznacz_progi_stanow(przejscia: pd.DataFrame) -> tuple[float, float, int]:
 
 
 def analiza_stanow(przejscia: pd.DataFrame) -> dict[str, object]:
-    """Wylicza historyczną skuteczność kompresji, ekspansji i wahadła."""
     prog_malego, prog_duzego, prog_ekspansji = wyznacz_progi_stanow(przejscia)
 
     maska_kompresji = przejscia["Poprzedni rozstęp"] >= prog_duzego
@@ -440,8 +401,7 @@ def analiza_stanow(przejscia: pd.DataFrame) -> dict[str, object]:
 # PREDYKCJA HEURYSTYCZNA
 # =============================================================================
 
-def znormalizuj_liczniki(serie: Iterable[pd.Series]) -> dict[int, float]:
-    """Łączy rozkłady skoków w jeden wynik punktowy."""
+def znormalizuj_liczniki(serie: Iterable[tuple[pd.Series, float]]) -> dict[int, float]:
     wynik: dict[int, float] = {}
 
     for seria, waga in serie:
@@ -466,13 +426,6 @@ def wybierz_najlepszy_skok(
     prog_duzego: float,
     ostatni_skok: int | None,
 ) -> tuple[int, float, list[tuple[int, float]]]:
-    """
-    Łączy:
-    - rozkład całej wybranej historii,
-    - ostatnie 100 przejść,
-    - rozkład warunkowy dla aktualnego stanu,
-    - korektę wahadłową po dużym skoku.
-    """
     wszystkie = przejscia[kolumna]
     ostatnie = przejscia.tail(min(100, len(przejscia)))[kolumna]
 
@@ -487,14 +440,12 @@ def wybierz_najlepszy_skok(
             kolumna,
         ]
         serie_wazone.append((warunkowe, 0.30))
-
     elif stan == "Ekspansja":
         warunkowe = przejscia.loc[
             przejscia["Poprzedni rozstęp"] <= prog_malego,
             kolumna,
         ]
         serie_wazone.append((warunkowe, 0.30))
-
     else:
         srodkowe = przejscia.loc[
             przejscia["Poprzedni rozstęp"].between(
@@ -528,7 +479,6 @@ def wybierz_najlepszy_skok(
                 + 0.45 * float(prawdopodobienstwo)
             )
 
-    # Delikatna preferencja mniejszych wartości przy remisie.
     ranking = sorted(
         punkty.items(),
         key=lambda para: (-para[1], abs(para[0]), para[0]),
@@ -538,17 +488,10 @@ def wybierz_najlepszy_skok(
         return 0, 0.0, [(0, 0.0)]
 
     najlepszy_skok, najlepszy_wynik = ranking[0]
-    top = ranking[:5]
-    return int(najlepszy_skok), float(najlepszy_wynik), top
+    return int(najlepszy_skok), float(najlepszy_wynik), ranking[:5]
 
 
-def dopasuj_do_zakresu_i_kolejnosci(
-    kandydaci: list[int],
-) -> list[int]:
-    """
-    Koryguje liczby tak, aby były unikalne, rosnące i mieściły się w 1-49,
-    zachowując możliwie blisko pierwotne kandydatury pozycyjne.
-    """
+def dopasuj_do_zakresu_i_kolejnosci(kandydaci: list[int]) -> list[int]:
     wynik = np.array(kandydaci, dtype=int)
 
     for i in range(LICZBA_POZYCJI):
@@ -574,7 +517,6 @@ def diagnozuj_i_generuj(
     df_zakres: pd.DataFrame,
     przejscia: pd.DataFrame,
 ) -> dict[str, object]:
-    """Diagnozuje najnowszy stan i generuje heurystyczny zestaw."""
     statystyki_stanow = analiza_stanow(przejscia)
     prog_malego = float(statystyki_stanow["prog_malego_rozstepu"])
     prog_duzego = float(statystyki_stanow["prog_duzego_rozstepu"])
@@ -619,9 +561,7 @@ def diagnozuj_i_generuj(
         ostatni_skok = int(ostatnie_skoki[kolumna])
 
         if abs(ostatni_skok) > PROG_DUZEGO_SKOKU_WAHADLA:
-            aktywne_wahadla.append(
-                f"P{i}: ostatni skok {ostatni_skok:+d}"
-            )
+            aktywne_wahadla.append(f"P{i}: ostatni skok {ostatni_skok:+d}")
 
         skok, wynik, top = wybierz_najlepszy_skok(
             przejscia=przejscia,
@@ -666,9 +606,7 @@ def formatuj_zestaw(liczby: list[int]) -> str:
 
 def pokaz_aplikacje() -> None:
     st.title("📈 Analizator gradientów przesunięć Lotto 6/49")
-    st.caption(
-        "Analiza zmian wartości na sześciu uporządkowanych pozycjach kuponu."
-    )
+    st.caption("Analiza zmian wartości na sześciu uporządkowanych pozycjach kuponu.")
 
     sciezka = znajdz_sciezke_pliku()
 
@@ -687,28 +625,12 @@ def pokaz_aplikacje() -> None:
             st.stop()
 
         if len(df) < 3:
-            st.error(
-                "Do analizy skoków i stanów potrzebne są co najmniej "
-                "3 poprawne losowania."
-            )
+            st.error("Do analizy skoków i stanów potrzebne są co najmniej 3 losowania.")
             st.stop()
 
     except FileNotFoundError:
-        st.error(
-            "Nie znaleziono pliku "
-            "'Mapy liczbowe Lotto - Multi Multi - Mini Lotto - Ekstra "
-            "Pensja - Kaskada - Eurojackpot (2).mht' w folderze aplikacji. "
-            "Upewnij się, że nazwa jest poprawna."
-        )
+        st.error(f"Nie znaleziono pliku '{NAZWA_PLIKU}' w folderze aplikacji.")
         st.stop()
-
-    except PermissionError:
-        st.error(
-            "Brak uprawnień do odczytu lokalnego pliku MHT. "
-            "Sprawdź uprawnienia folderu aplikacji."
-        )
-        st.stop()
-
     except Exception as blad:
         st.error(f"Wystąpił błąd podczas wczytywania danych: {blad}")
         st.stop()
@@ -717,35 +639,17 @@ def pokaz_aplikacje() -> None:
         st.header("Ustawienia analizy")
         st.success("Plik lokalny został wczytany poprawnie.")
         st.write(f"**Poprawne losowania:** {len(df)}")
-        st.write(
-            f"**Najnowszy numer:** "
-            f"{int(df['Numer Losowania'].max())}"
-        )
-        st.write(
-            f"**Najstarszy numer:** "
-            f"{int(df['Numer Losowania'].min())}"
-        )
+        st.write(f"**Najnowszy numer:** {int(df['Numer Losowania'].max())}")
+        st.write(f"**Najstarszy numer:** {int(df['Numer Losowania'].min())}")
 
-        dostepne_opcje = [
-            opcja
-            for opcja in ["100", "250", "500"]
-            if len(df) >= int(opcja)
-        ]
+        dostepne_opcje = [opcja for opcja in ["100", "250", "500"] if len(df) >= int(opcja)]
         dostepne_opcje.append("Wszystkie")
 
         wybor_zakresu = st.select_slider(
             "Zakres nauki trendów",
             options=dostepne_opcje,
             value=dostepne_opcje[-1],
-            help=(
-                "Wybierz liczbę najnowszych losowań używanych do statystyk "
-                "i predykcji."
-            ),
-        )
-
-        st.info(
-            "Predykcja ma charakter wyłącznie statystyczny. Losowania Lotto "
-            "są zdarzeniami losowymi i model nie gwarantuje trafienia."
+            help="Wybierz liczbę najnowszych losowań używanych do statystyk i predykcji.",
         )
 
     df_zakres = ogranicz_historie(df, wybor_zakresu)
@@ -753,27 +657,28 @@ def pokaz_aplikacje() -> None:
     przejscia_zakres = przygotuj_przejscia(df_zakres)
 
     zakladka_mapa, zakladka_stat, zakladka_pred = st.tabs(
-        [
-            "Surowa Mapa Skoków",
-            "Analiza Statystyczna",
-            "Sytuacje i Predykcja",
-        ]
+        ["Surowa Mapa Skoków", "Analiza Statystyczna", "Sytuacje i Predykcja"]
     )
 
     with zakladka_mapa:
         st.subheader("Surowa mapa gradientów")
-        st.write(
-            "Każdy wiersz pokazuje zmianę wartości danej pozycji względem "
-            "bezpośrednio poprzedniego losowania historycznego."
+        
+        # Nowy komponent: przełącznik sortowania w widoku tabeli danych
+        kolejnosc_tabeli = st.radio(
+            "Sortowanie tabeli:", 
+            ["Od najnowszych", "Od najstarszych"], 
+            horizontal=True, 
+            key="sort_mapa"
         )
+        
+        mapa_do_wyswietlenia = mapa_skokow_zakres.copy()
+        if kolejnosc_tabeli == "Od najnowszych":
+            mapa_do_wyswietlenia = mapa_do_wyswietlenia.sort_values("Numer Losowania", ascending=False)
+        else:
+            mapa_do_wyswietlenia = mapa_do_wyswietlenia.sort_values("Numer Losowania", ascending=True)
 
-        mapa_do_wyswietlenia = (
-            mapa_skokow_zakres
-            .sort_values("Numer Losowania", ascending=False)
-            .reset_index(drop=True)
-        )
         st.dataframe(
-            mapa_do_wyswietlenia,
+            mapa_do_wyswietlenia.reset_index(drop=True),
             use_container_width=True,
             hide_index=True,
             height=650,
@@ -781,24 +686,15 @@ def pokaz_aplikacje() -> None:
 
     with zakladka_stat:
         st.subheader("Średnie i najczęstsze gradienty")
-
         statystyki = tabela_statystyk(mapa_skokow_zakres)
-        st.dataframe(
-            statystyki,
-            use_container_width=True,
-            hide_index=True,
-        )
+        st.dataframe(statystyki, use_container_width=True, hide_index=True)
 
         st.divider()
         st.subheader("Rozkłady prawdopodobieństwa skoków")
 
         for poczatek in (0, 2, 4):
             kol1, kol2 = st.columns(2)
-
-            for kontener, indeks in zip(
-                (kol1, kol2),
-                (poczatek, poczatek + 1),
-            ):
+            for kontener, indeks in zip((kol1, kol2), (poczatek, poczatek + 1)):
                 with kontener:
                     kolumna = KOLUMNY_SKOKOW[indeks]
                     st.markdown(f"#### Pozycja P{indeks + 1}")
@@ -816,22 +712,10 @@ def pokaz_aplikacje() -> None:
         st.subheader("Diagnoza najnowszego układu")
 
         met1, met2, met3, met4 = st.columns(4)
-        met1.metric(
-            "Najnowsze losowanie",
-            str(wynik["numer_ostatniego"]),
-        )
-        met2.metric(
-            "Ostatni zestaw",
-            formatuj_zestaw(wynik["liczby_ostatnie"]),
-        )
-        met3.metric(
-            "Rozstęp P6 − P1",
-            str(wynik["rozstep_ostatni"]),
-        )
-        met4.metric(
-            "Rozpoznany stan",
-            str(wynik["stan"]),
-        )
+        met1.metric("Najnowsze losowanie", str(wynik["numer_ostatniego"]))
+        met2.metric("Ostatni zestaw", formatuj_zestaw(wynik["liczby_ostatnie"]))
+        met3.metric("Rozstęp P6 − P1", str(wynik["rozstep_ostatni"]))
+        met4.metric("Rozpoznany stan", str(wynik["stan"]))
 
         st.info(str(wynik["opis_stanu"]))
 
@@ -839,67 +723,25 @@ def pokaz_aplikacje() -> None:
             st.warning(
                 "Aktywna przesłanka wahadłowa: "
                 + "; ".join(wynik["aktywne_wahadla"])
-                + ". Model zwiększył wagę historycznych korekt "
-                  "o przeciwnym znaku."
-            )
-        else:
-            st.write(
-                "Brak aktywnego sygnału wahadła przekraczającego "
-                f"|{PROG_DUZEGO_SKOKU_WAHADLA}| w ostatnim przejściu."
+                + ". Model zwiększył wagę historycznych korekt o przeciwnym znaku."
             )
 
         st.divider()
         st.subheader("Historyczna powtarzalność stanów")
 
         kol_a, kol_b, kol_c = st.columns(3)
-
         with kol_a:
-            st.metric(
-                "Kompresja dośrodkowa",
-                f"{stany['kompresja_prawdopodobienstwo']:.1f}%",
-                help=(
-                    "Odsetek szerokich układów, po których P1 wzrosło, "
-                    "a P6 zmalało."
-                ),
-            )
-            st.caption(
-                f"{stany['kompresja_trafienia']} trafień na "
-                f"{stany['kompresja_przypadki']} przypadków; próg szerokiego "
-                f"rozstępu: ≥ {stany['prog_duzego_rozstepu']:.1f}."
-            )
-
+            st.metric("Kompresja dośrodkowa", f"{stany['kompresja_prawdopodobienstwo']:.1f}%")
+            st.caption(f"{stany['kompresja_trafienia']} / {stany['kompresja_przypadki']} (próg: ≥ {stany['prog_duzego_rozstepu']:.1f})")
         with kol_b:
-            st.metric(
-                "Ekspansja odśrodkowa",
-                f"{stany['ekspansja_prawdopodobienstwo']:.1f}%",
-                help=(
-                    "Odsetek ciasnych układów, po których skrajne pozycje "
-                    "wykonały duży ruch na zewnątrz."
-                ),
-            )
-            st.caption(
-                f"{stany['ekspansja_trafienia']} trafień na "
-                f"{stany['ekspansja_przypadki']} przypadków; próg ciasnego "
-                f"rozstępu: ≤ {stany['prog_malego_rozstepu']:.1f}."
-            )
-
+            st.metric("Ekspansja odśrodkowa", f"{stany['ekspansja_prawdopodobienstwo']:.1f}%")
+            st.caption(f"{stany['ekspansja_trafienia']} / {stany['ekspansja_przypadki']} (próg: ≤ {stany['prog_malego_rozstepu']:.1f})")
         with kol_c:
             wahadlo = stany["wahadlo"]
-            wszystkie_przypadki = sum(
-                int(w["przypadki"]) for w in wahadlo.values()
-            )
-            wszystkie_korekty = sum(
-                int(w["korekty"]) for w in wahadlo.values()
-            )
-            laczny_proc = bezpieczny_procent(
-                wszystkie_korekty,
-                wszystkie_przypadki,
-            )
-            st.metric("Korekta wahadłowa", f"{laczny_proc:.1f}%")
-            st.caption(
-                f"{wszystkie_korekty} korekt na "
-                f"{wszystkie_przypadki} dużych skoków."
-            )
+            wszystkie_przypadki = sum(int(w["przypadki"]) for w in wahadlo.values())
+            wszystkie_korekty = sum(int(w["korekty"]) for w in wahadlo.values())
+            st.metric("Korekta wahadłowa", f"{bezpieczny_procent(wszystkie_korekty, wszystkie_przypadki):.1f}%")
+            st.caption(f"{wszystkie_korekty} korekt na {wszystkie_przypadki} dużych skoków.")
 
         tabela_wahadla = pd.DataFrame(
             [
@@ -907,19 +749,12 @@ def pokaz_aplikacje() -> None:
                     "Pozycja": pozycja,
                     "Duże skoki": dane["przypadki"],
                     "Korekty przeciwnego znaku": dane["korekty"],
-                    "Prawdopodobieństwo [%]": round(
-                        float(dane["prawdopodobieństwo"]),
-                        1,
-                    ),
+                    "Prawdopodobieństwo [%]": round(float(dane["prawdopodobieństwo"]), 1),
                 }
                 for pozycja, dane in stany["wahadlo"].items()
             ]
         )
-        st.dataframe(
-            tabela_wahadla,
-            use_container_width=True,
-            hide_index=True,
-        )
+        st.dataframe(tabela_wahadla, use_container_width=True, hide_index=True)
 
         st.divider()
         st.subheader("Najbardziej prawdopodobne gradienty")
@@ -928,43 +763,13 @@ def pokaz_aplikacje() -> None:
             {
                 "Pozycja": [f"P{i}" for i in range(1, 7)],
                 "Ostatnia liczba": wynik["liczby_ostatnie"],
-                "Sugerowany skok": [
-                    f"{skok:+d}" for skok in wynik["przewidywane_skoki"]
-                ],
-                "Wartość przed korektą": [
-                    liczba + skok
-                    for liczba, skok in zip(
-                        wynik["liczby_ostatnie"],
-                        wynik["przewidywane_skoki"],
-                    )
-                ],
+                "Sugerowany skok": [f"{skok:+d}" for skok in wynik["przewidywane_skoki"]],
                 "Liczba finalna": wynik["zestaw"],
             }
         )
-        st.dataframe(
-            tabela_predykcji,
-            use_container_width=True,
-            hide_index=True,
-        )
+        st.dataframe(tabela_predykcji, use_container_width=True, hide_index=True)
 
-        with st.expander("Pokaż pięć najwyżej ocenionych skoków dla pozycji"):
-            for i in range(1, 7):
-                ranking = wynik["rankingi"][f"P{i}"]
-                tekst = ", ".join(
-                    f"{skok:+d} (wynik {ocena:.3f})"
-                    for skok, ocena in ranking
-                )
-                st.write(f"**P{i}:** {tekst}")
-
-        st.success(
-            "Sugerowany zestaw heurystyczny: "
-            f"**{formatuj_zestaw(wynik['zestaw'])}**"
-        )
-        st.caption(
-            "Po wyliczeniu gradientów wartości są korygowane wyłącznie "
-            "technicznie, aby utworzyć sześć unikalnych, rosnących liczb "
-            "z zakresu 1–49."
-        )
+        st.success(f"Sugerowany zestaw heurystyczny: **{formatuj_zestaw(wynik['zestaw'])}**")
 
 
 if __name__ == "__main__":
