@@ -17,13 +17,13 @@ import streamlit as st
 # =============================================================================
 
 NAZWA_PLIKU = "Wyniki.mht"
-LICZBA_POZYCJI = 6
+LICZBA_POZYCJI = 6  # Poprawione i ujednolicone
 MIN_LICZBA = 1
 MAX_LICZBA = 49
 PROG_DUZEGO_SKOKU_WAHADLA = 10
 
-KOLUMNY_LICZB = [f"P{i}" for i in range(1, LICZNA_POZYCJI + 1)]
-KOLUMNY_SKOKOW = [f"Skok_P{i}" for i in range(1, LICZNA_POZYCJI + 1)]
+KOLUMNY_LICZB = [f"P{i}" for i in range(1, LICZBA_POZYCJI + 1)]
+KOLUMNY_SKOKOW = [f"Skok_P{i}" for i in range(1, LICZBA_POZYCJI + 1)]
 
 st.set_page_config(
     page_title="Analizator gradientów Lotto 6/49",
@@ -577,7 +577,7 @@ def diagnozuj_i_generuj(
 
     kandydaci = [
         liczba + skok
-        for liczba, skok in zip(liczby_ostatnie, przewidywane_skoki)
+        for fallback_idx, (liczba, skok) in enumerate(zip(liczby_ostatnie, przewidywane_skoki))
     ]
     zestaw = dopasuj_do_zakresu_i_kolejnosci(kandydaci)
 
@@ -663,7 +663,6 @@ def pokaz_aplikacje() -> None:
     with zakladka_mapa:
         st.subheader("Surowa mapa gradientów")
         
-        # Nowy komponent: przełącznik sortowania w widoku tabeli danych
         kolejnosc_tabeli = st.radio(
             "Sortowanie tabeli:", 
             ["Od najnowszych", "Od najstarszych"], 
@@ -679,7 +678,7 @@ def pokaz_aplikacje() -> None:
 
         st.dataframe(
             mapa_do_wyswietlenia.reset_index(drop=True),
-            use_container_width=True,
+            width="stretch",  # Zaktualizowano z use_container_width
             hide_index=True,
             height=650,
         )
@@ -687,7 +686,7 @@ def pokaz_aplikacje() -> None:
     with zakladka_stat:
         st.subheader("Średnie i najczęstsze gradienty")
         statystyki = tabela_statystyk(mapa_skokow_zakres)
-        st.dataframe(statystyki, use_container_width=True, hide_index=True)
+        st.dataframe(statystyki, width="stretch", hide_index=True)
 
         st.divider()
         st.subheader("Rozkłady prawdopodobieństwa skoków")
@@ -702,7 +701,7 @@ def pokaz_aplikacje() -> None:
                         rozklad_skokow(mapa_skokow_zakres[kolumna]),
                         x_label="Wartość skoku",
                         y_label="Prawdopodobieństwo [%]",
-                        use_container_width=True,
+                        width="stretch",  # Zaktualizowano z use_container_width
                     )
 
     with zakladka_pred:
@@ -754,7 +753,7 @@ def pokaz_aplikacje() -> None:
                 for pozycja, dane in stany["wahadlo"].items()
             ]
         )
-        st.dataframe(tabela_wahadla, use_container_width=True, hide_index=True)
+        st.dataframe(tabela_wahadla, width="stretch", hide_index=True)
 
         st.divider()
         st.subheader("Najbardziej prawdopodobne gradienty")
@@ -767,7 +766,7 @@ def pokaz_aplikacje() -> None:
                 "Liczba finalna": wynik["zestaw"],
             }
         )
-        st.dataframe(tabela_predykcji, use_container_width=True, hide_index=True)
+        st.dataframe(tabela_predykcji, width="stretch", hide_index=True)
 
         st.success(f"Sugerowany zestaw heurystyczny: **{formatuj_zestaw(wynik['zestaw'])}**")
 
