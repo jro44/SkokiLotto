@@ -1,6 +1,6 @@
 """
 Graficzny silnik wizualizacji dystrybucji prawdopodobieństwa oparty o Plotly.
-Poprawiono parametr struktury rozkładu słupków (bargap).
+Poprawiono parametr struktury rozkładu słupków z 'bar_gap' na prawidłowy 'bargap'.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ class KreatorWykresow:
     def histogram_skoku(df: pd.DataFrame, kolumna: str) -> go.Figure:
         """
         Tworzy histogram rozkładu skoków różnicowych.
-        Poprawiono parametr bar_gap na poprawny w Plotly: bargap.
+        Parametr 'bar_gap' został zmieniony na poprawny w Plotly 'bargap'.
         """
         fig = px.histogram(
             df, 
@@ -38,6 +38,6 @@ class KreatorWykresow:
             title=f"Gęstość rozkładu dla: {kolumna}", 
             color_discrete_sequence=["#2b5c8f"]
         )
-        # Poprawione: bargap zamiast bar_gap
+        # POPRAWIONE: bargap (łącznie, bez podkreślenia) zgodnie ze specyfikacją Plotly
         fig.update_layout(template="plotly_white", bargap=0.1)
         return fig
