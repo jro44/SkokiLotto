@@ -367,11 +367,11 @@ def analiza_stanow(przejscia: pd.DataFrame) -> dict[str, object]:
         liczba_korekt = int((duzy_poprzedni & przeciwny_znak).sum())
 
         wyniki_wahadla[f"P{pozycja}"] = {
-            "przypadki": integer_przypadkow := liczba_przypadkow,
-            "korekty": integer_korekt := liczba_korekt,
+            "przypadki": liczba_przypadkow,
+            "korekty": liczba_korekt,
             "prawdopodobieństwo": bezpieczny_procent(
-                integer_korekt,
-                integer_przypadkow,
+                liczba_korekt,
+                liczba_przypadkow,
             ),
         }
 
