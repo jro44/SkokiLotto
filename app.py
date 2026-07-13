@@ -18,8 +18,7 @@ import streamlit as st
 # =============================================================================
 
 NAZWA_PLIKU = (
-    "Mapy liczbowe Lotto - Multi Multi - Mini Lotto - Ekstra Pensja - "
-    "Kaskada - Eurojackpot (2).mht"
+    "Wyniki.mht"
 )
 LICZBA_POZYCJI = 6
 MIN_LICZBA = 1
