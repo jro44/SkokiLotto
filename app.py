@@ -17,7 +17,7 @@ import streamlit as st
 # =============================================================================
 
 NAZWA_PLIKU = "Wyniki.mht"
-LICZBA_POZYCJI = 6  # Poprawione i ujednolicone
+LICZBA_POZYCJI = 6
 MIN_LICZBA = 1
 MAX_LICZBA = 49
 PROG_DUZEGO_SKOKU_WAHADLA = 10
@@ -162,12 +162,10 @@ def parsuj_wyniki_lotto(zawartosc: str) -> pd.DataFrame:
             continue
 
         rekord = {"Numer Losowania": numer_losowania}
-        rekord.update(
-            {
-                f"P{i + 1}": liczba
-                for i, slice_l in enumerate(sorted(wylosowane))
-            }
-        )
+        posortowane_wylosowane = sorted(wylosowane)
+        for i in range(LICZBA_POZYCJI):
+            rekord[f"P{i + 1}"] = posortowane_wylosowane[i]
+            
         rekordy.append(rekord)
 
     if not rekordy:
@@ -238,7 +236,7 @@ def przygotuj_przejscia(df: pd.DataFrame) -> pd.DataFrame:
         "Bieżący rozstęp",
         *KOLUMNY_LICZB,
         *KOLUMNY_SKOKOW,
-        *[f"Poprzednie_P{i}" for i in range(1, 7)],
+        *[f"Poprzednie_P{idx}" for idx in range(1, 7)],
     ]
     przejscia[kolumny_int] = przejscia[kolumny_int].astype(int)
 
@@ -369,11 +367,11 @@ def analiza_stanow(przejscia: pd.DataFrame) -> dict[str, object]:
         liczba_korekt = int((duzy_poprzedni & przeciwny_znak).sum())
 
         wyniki_wahadla[f"P{pozycja}"] = {
-            "przypadki": liczba_przypadkow,
-            "korekty": liczba_korekt,
+            "przypadki": integer_przypadkow := liczba_przypadkow,
+            "korekty": integer_korekt := liczba_korekt,
             "prawdopodobieństwo": bezpieczny_procent(
-                liczba_korekt,
-                liczba_przypadkow,
+                integer_korekt,
+                integer_przypadkow,
             ),
         }
 
@@ -576,8 +574,8 @@ def diagnozuj_i_generuj(
         rankingi[f"P{i}"] = top
 
     kandydaci = [
-        liczba + skok
-        for fallback_idx, (liczba, skok) in enumerate(zip(liczby_ostatnie, przewidywane_skoki))
+        liczby_ostatnie[idx] + przewidywane_skoki[idx]
+        for idx in range(LICZBA_POZYCJI)
     ]
     zestaw = dopasuj_do_zakresu_i_kolejnosci(kandydaci)
 
@@ -678,7 +676,7 @@ def pokaz_aplikacje() -> None:
 
         st.dataframe(
             mapa_do_wyswietlenia.reset_index(drop=True),
-            width="stretch",  # Zaktualizowano z use_container_width
+            width="stretch",
             hide_index=True,
             height=650,
         )
@@ -701,7 +699,7 @@ def pokaz_aplikacje() -> None:
                         rozklad_skokow(mapa_skokow_zakres[kolumna]),
                         x_label="Wartość skoku",
                         y_label="Prawdopodobieństwo [%]",
-                        width="stretch",  # Zaktualizowano z use_container_width
+                        width="stretch",
                     )
 
     with zakladka_pred:
